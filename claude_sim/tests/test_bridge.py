@@ -61,7 +61,7 @@ def run_to_completion(run_dir: Path, mode: str, agents: int = 16, seed: int = 7,
                         "--agents", str(agents), "--seed", str(seed)]) == 0
     stages = []
     for _ in range(10):
-        status = bridge._run_pipeline(run_dir, allow_missing=allow_missing_stage in stages[-1:])
+        status = bridge._run_pipeline(run_dir, allow_missing=allow_missing_stage if allow_missing_stage in stages[-1:] else None)
         if status["status"] != "pending":
             return status | {"stages": stages}
         stages.append(status["stage"])
@@ -139,7 +139,7 @@ def test_missing_synthesis_falls_back_and_is_flagged(tmp_path):
 def test_answer_rejects_non_object_and_unknown_keys(tmp_path):
     p = tmp_path / "p.txt"; p.write_text(VALIDATE_PITCH)
     bridge.main(["init", "--dir", str(tmp_path), "--pitch-file", str(p)])
-    st = bridge._run_pipeline(tmp_path, False)
+    st = bridge._run_pipeline(tmp_path, None)
     key = json.loads(Path(st["pending_file"]).read_text())[0]["key"]
     f = tmp_path / "in.json"
     f.write_text(json.dumps([{"key": key, "response": "not json"}, {"key": "bogus", "response": {}}]))
@@ -151,12 +151,12 @@ def test_show_partitions_reaction_tasks_without_overlap(tmp_path, capsys):
     p = tmp_path / "p.txt"; p.write_text(VALIDATE_PITCH)
     bridge.main(["init", "--dir", str(tmp_path), "--pitch-file", str(p), "--agents", "24", "--seed", "3"])
     for _ in range(2):  # answer parse + archetypes
-        st = bridge._run_pipeline(tmp_path, False)
+        st = bridge._run_pipeline(tmp_path, None)
         tasks = json.loads(Path(st["pending_file"]).read_text())
         f = tmp_path / "in.json"
         f.write_text(json.dumps([{"key": t["key"], "response": fake_answer(t, 0)} for t in tasks]))
         bridge.main(["answer", "--dir", str(tmp_path), "--file", str(f)])
-    st = bridge._run_pipeline(tmp_path, False)
+    st = bridge._run_pipeline(tmp_path, None)
     assert st["stage"] == "reactions" and 1 <= st["batches"] <= bridge.MAX_BATCHES
     capsys.readouterr()
     seen = []
@@ -166,3 +166,51 @@ def test_show_partitions_reaction_tasks_without_overlap(tmp_path, capsys):
         seen += [t["key"] for t in out["tasks"]]
         assert set(t["system_id"] for t in out["tasks"]) <= set(out["system_prompts"])
     assert sorted(seen) == sorted(t["key"] for t in json.loads(Path(st["pending_file"]).read_text()))
+
+
+def test_allow_missing_reactions_does_not_skip_synthesis(tmp_path):
+    p = tmp_path / "p.txt"; p.write_text(VALIDATE_PITCH)
+    bridge.main(["init", "--dir", str(tmp_path), "--pitch-file", str(p), "--agents", "16", "--seed", "5"])
+    for _ in range(3):
+        st = bridge._run_pipeline(tmp_path, None)
+        tasks = json.loads(Path(st["pending_file"]).read_text())
+        keep = tasks if st["stage"] != "reactions" else tasks[1:]  # one persona never answers
+        f = tmp_path / "in.json"
+        f.write_text(json.dumps([{"key": t["key"], "response": fake_answer(t, i)} for i, t in enumerate(keep)]))
+        bridge.main(["answer", "--dir", str(tmp_path), "--file", str(f)])
+    st = bridge._run_pipeline(tmp_path, "reactions")
+    assert st["status"] == "pending" and st["stage"] == "report"  # synthesis still goes to a subagent
+
+
+def test_unusable_archetype_answer_is_dropped_and_repended(tmp_path):
+    p = tmp_path / "p.txt"; p.write_text(VALIDATE_PITCH)
+    bridge.main(["init", "--dir", str(tmp_path), "--pitch-file", str(p)])
+    for bad in (False, True):
+        st = bridge._run_pipeline(tmp_path, None)
+        t = json.loads(Path(st["pending_file"]).read_text())[0]
+        resp = {"archetypes": []} if bad else fake_answer(t, 0)
+        f = tmp_path / "in.json"; f.write_text(json.dumps([{"key": t["key"], "response": resp}]))
+        bridge.main(["answer", "--dir", str(tmp_path), "--file", str(f)])
+    st = bridge._run_pipeline(tmp_path, None)
+    assert st["status"] == "retry" and st["stage"] == "archetypes"
+    st = bridge._run_pipeline(tmp_path, None)
+    assert st["status"] == "pending" and st["stage"] == "archetypes"
+
+
+def test_html_payload_cannot_break_out_of_script(tmp_path):
+    run_to_completion(tmp_path, "validate")
+    rep = json.loads((tmp_path / "report.json").read_text())
+    rep["headline"] = "<!--<script></script>-->"
+    html = bridge.render_html(rep)
+    payload = html.split('id="report-data" type="application/json">')[1].split("</script>")[0]
+    assert "<" not in payload
+
+
+def test_malformed_answer_file_is_a_clean_error(tmp_path, capsys):
+    p = tmp_path / "p.txt"; p.write_text(VALIDATE_PITCH)
+    bridge.main(["init", "--dir", str(tmp_path), "--pitch-file", str(p)])
+    bridge._run_pipeline(tmp_path, None)
+    f = tmp_path / "bad.json"; f.write_text("[{not json")
+    assert bridge.main(["answer", "--dir", str(tmp_path), "--file", str(f)]) == 2
+    f.write_text(json.dumps(["oops", 3]))
+    assert bridge.main(["answer", "--dir", str(tmp_path), "--file", str(f)]) == 0

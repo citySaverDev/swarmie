@@ -54,7 +54,8 @@ data is written to the session scratchpad and is **never committed**. This fork 
 ideas stay out of git.
 
 **Stopping:** say "stop" or "cancel". The running workflow is stopped. Re-running resumes from the answers already
-saved in the same session.
+saved in the same session. Each stage gets at most 2 subagent rounds; after that, missing persona replies are counted
+as failed agents (shown in the report) instead of being retried again.
 
 **From a terminal:** on a desktop with Claude Code installed, clone this repo, run `uv sync --project backend`, open
 `claude` in the repo, and type `/swarmie-sim`.
@@ -78,7 +79,12 @@ saved in the same session.
   to ask real customers, not as evidence of demand.
 - **Smaller swarms:** tens of personas instead of the web app's 100–500. Personas in one batch are answered by the
   same subagent. Each is prompted as an independent call, but they are less independent than separate API calls.
-- **Low confidence below 15 speakers:** Swarmie caps confidence at "low" when fewer than 15 personas speak.
+- **Low confidence below 15 speakers:** Swarmie caps confidence at "low" when fewer than 15 personas speak. With 24
+  personas, about 12–15 usually speak, so use 40 or more when you need a medium or high confidence verdict. The
+  archetype count (12) and every prompt match the web app; only the persona count is smaller (the web app defaults
+  to 100).
+- **Pitch text is untrusted input:** the persona subagents can run tools, and your pitch text is part of their
+  prompt. They are told to treat it as data only. Don't paste text from untrusted sources into a brief.
 - **Uncalibrated scores:** the PMF score and the PMF index are Swarmie's uncalibrated heuristics.
 - **Speed:** a run takes several minutes, not the hosted site's advertised 60 seconds.
 - **No live dashboard:** progress shows in Claude Code's workflow view instead of the web UI.

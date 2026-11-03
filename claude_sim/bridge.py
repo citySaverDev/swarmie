@@ -37,6 +37,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -83,7 +84,7 @@ class MissingAnswer(RuntimeError):
 
 
 class Store:
-    def __init__(self, answers: dict[str, Any], allow_missing: bool):
+    def __init__(self, answers: dict[str, Any], allow_missing: str | None):
         self.answers = answers
         self.allow_missing = allow_missing
         self.pending: list[dict[str, Any]] = []
@@ -111,9 +112,9 @@ class StubLLM:
     def _resolve(self, messages: list[dict[str, str]]) -> dict[str, Any]:
         key = self._key(messages)
         ans = self.store.answers.get(key)
-        if isinstance(ans, dict) and not ans.get("__failed__"):
+        if isinstance(ans, dict):
             return ans
-        if ans is not None or self.store.allow_missing:
+        if self.store.allow_missing == self.stage:
             self.store.failed.append(key)
             raise MissingAnswer(f"no answer for {key}")
         system = next((m["content"] for m in messages if m["role"] == "system"), "")
@@ -148,7 +149,9 @@ def _load(path: Path, default: Any) -> Any:
 
 
 def _dump(path: Path, data: Any) -> None:
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    os.replace(tmp, path)
 
 
 def _emit(obj: dict[str, Any]) -> int:
@@ -158,7 +161,7 @@ def _emit(obj: dict[str, Any]) -> int:
 
 # --------------------------------------------------------------------- pipeline
 
-def _run_pipeline(run_dir: Path, allow_missing: bool) -> dict[str, Any]:
+def _run_pipeline(run_dir: Path, allow_missing: str | None) -> dict[str, Any]:
     cfg = _load(run_dir / "input.json", None)
     if cfg is None:
         return {"status": "error", "error": f"{run_dir}/input.json missing; run `init` first"}
@@ -215,6 +218,14 @@ def _run_pipeline(run_dir: Path, allow_missing: bool) -> dict[str, Any]:
     except MissingAnswer as exc:
         return {"status": "error", "stage": stage,
                 "error": f"The {stage} step failed ({exc}). This step is required; re-run it."}
+    except Exception as exc:  # an answer Swarmie's own code couldn't use (e.g. no archetypes)
+        dropped = [k for k in answers if k.startswith(f"{stage}:")]
+        for k in dropped:
+            answers.pop(k)
+        _dump(run_dir / "answers.json", answers)
+        return {"status": "retry", "stage": stage, "dropped_answers": len(dropped),
+                "error": f"Swarmie could not use the {stage} answer ({type(exc).__name__}: {str(exc)[:200]}). "
+                         "Those answers were discarded; run `next` again to re-request them."}
 
     out = report.to_dict()
     synth_failed = [k for k in store.failed if k.startswith("report:")]
@@ -314,7 +325,7 @@ def render_markdown(r: dict[str, Any]) -> str:
 def render_html(r: dict[str, Any]) -> str:
     tpl = (HERE / "report_template.html").read_text()
     payload = dict(r, _markdown=render_markdown(r))
-    data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
+    data = json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
     name = r["meta"].get("name") or "Swarmie"
     title = html.escape(f"{name} {r['meta']['swarm_label']} Swarm")
     return tpl.replace("__TITLE__", title).replace("__REPORT_JSON__", data)
@@ -358,8 +369,8 @@ def cmd_init(a: argparse.Namespace) -> int:
         (run_dir / f).unlink(missing_ok=True)
     cfg = {
         "mode": mode, "pitch_text": pitch, "n_agents": n,
-        "n_archetypes": max(6, min(get_swarm(mode).n_archetypes, n // 2)),
-        "name": (a.name or "").strip()[:40],
+        "n_archetypes": get_swarm(mode).n_archetypes,  # same as the web app (roast.py)
+        "name": re.sub(r"[^A-Za-z0-9 ._-]", "", a.name or "").strip()[:40],
         "seed": int(a.seed) if a.seed is not None else random.SystemRandom().randint(1, 10**6),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
@@ -369,7 +380,10 @@ def cmd_init(a: argparse.Namespace) -> int:
 
 
 def cmd_next(a: argparse.Namespace) -> int:
-    return _emit(_run_pipeline(Path(a.dir), a.allow_missing))
+    run_dir = Path(a.dir)
+    with open(run_dir / ".answers.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _emit(_run_pipeline(run_dir, a.allow_missing))
 
 
 def cmd_show(a: argparse.Namespace) -> int:
@@ -399,9 +413,16 @@ def cmd_answer(a: argparse.Namespace) -> int:
 
 def _answer_locked(a: argparse.Namespace, run_dir: Path) -> int:
     pending = {t["key"]: t for t in _load(run_dir / "pending.json", [])}
-    incoming = json.loads(Path(a.file).read_text())
+    try:
+        incoming = json.loads(Path(a.file).read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        return _emit({"status": "error", "error": f"answers file is not valid JSON: {exc}"})
     if isinstance(incoming, dict) and "answers" in incoming:
         incoming = incoming["answers"]
+    if not isinstance(incoming, list):
+        return _emit({"status": "error", "error": "answers file must be a JSON array of {key, response}"})
+    incoming = [i for i in incoming if isinstance(i, dict)] + [
+        {"key": None, "response": None} for i in incoming if not isinstance(i, dict)]
     answers = _load(run_dir / "answers.json", {})
     accepted, rejected = 0, []
     for item in incoming:
@@ -445,7 +466,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--pitch-file", required=True); s.add_argument("--agents", type=int, default=DEFAULT_AGENTS)
     s.add_argument("--seed", type=int); s.add_argument("--name", default="")
     s.set_defaults(fn=cmd_init)
-    s = sub.add_parser("next"); s.add_argument("--dir", required=True); s.add_argument("--allow-missing", action="store_true")
+    s = sub.add_parser("next"); s.add_argument("--dir", required=True)
+    s.add_argument("--allow-missing", choices=["reactions", "report"],
+                   help="treat still-unanswered tasks of THIS stage as failed calls (never other stages)")
     s.set_defaults(fn=cmd_next)
     s = sub.add_parser("answer"); s.add_argument("--dir", required=True); s.add_argument("--file", required=True)
     s.set_defaults(fn=cmd_answer)
