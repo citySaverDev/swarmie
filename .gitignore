@@ -36,7 +36,9 @@ yarn-error.log*
 *.swp
 *.swo
 .cursor/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/workflows/
 
 # Tests / coverage
 .pytest_cache/
@@ -80,3 +82,7 @@ remotion/public/demo-music.mp3
 # PMF backtest generated outputs (regenerate with runner.py --out)
 backend/eval/backtest/data/features_tier1.json
 backend/eval/backtest/data/yc_all.json
+
+# claude_sim: run data contains the user's ideas; never commit it
+swarmie-runs/
+claude_sim/runs/

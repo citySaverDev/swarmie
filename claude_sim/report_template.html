@@ -1,0 +1,296 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (max 860px) — verdict first, evidence below, raw reactions last. */
+:root {
+  --bg: #f5f6f2; --surface: #ffffff; --ink: #1d2420; --muted: #5d6a62; --line: #d9ded6;
+  --accent: #a8680a; --accent-soft: #f6e7cc;
+  --good: #2f7d4f; --warn: #a8680a; --bad: #b23a2e; --neutral: #8a948d;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141916; --surface: #1c2320; --ink: #e6ebe7; --muted: #9aa69f; --line: #2f3833;
+  --accent: #e3a33b; --accent-soft: #3a2d17; --good: #5fbf85; --warn: #e3a33b; --bad: #ec7a6c; --neutral: #7d8882;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141916; --surface: #1c2320; --ink: #e6ebe7; --muted: #9aa69f; --line: #2f3833;
+  --accent: #e3a33b; --accent-soft: #3a2d17; --good: #5fbf85; --warn: #e3a33b; --bad: #ec7a6c; --neutral: #7d8882;
+  color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 17px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 860px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15 }
+h1 { font-size: clamp(1.7rem, 4.5vw, 2.5rem); font-weight: 700 }
+h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 12px }
+h3 { font-size: 1.05rem; font-weight: 700 }
+p { margin: 0; max-width: 68ch }
+section { display: grid; gap: 12px; min-width: 0 }
+.eyebrow { font: 500 .78rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.disclosure { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; font-size: .95rem }
+.disclosure strong { color: var(--ink) }
+.brief { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 14px }
+.verdict-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 14px; font: 600 1rem var(--display); border: 2px solid currentColor }
+.v-good { color: var(--good) } .v-warn { color: var(--warn) } .v-bad { color: var(--bad) }
+.chip { font: 500 .8rem var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px }
+.next { border-left: 3px solid var(--accent); padding-left: 12px }
+.next b { display: block; font: 500 .75rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px }
+.stat { border-top: 1px solid var(--line); padding-top: 8px }
+.stat .n { font: 500 1.6rem var(--mono); font-variant-numeric: tabular-nums }
+.stat .l { color: var(--muted); font-size: .9rem }
+.bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line) }
+.bar span { display: block; height: 100% }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font: .85rem var(--mono); color: var(--muted); font-variant-numeric: tabular-nums }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px }
+.objection { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 16px; display: grid; gap: 10px }
+.objection header { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap }
+.count { font: 500 .85rem var(--mono); color: var(--muted); white-space: nowrap }
+blockquote { margin: 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--muted); font-style: italic }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 }
+dt { font: 500 .78rem var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 3px }
+dd { margin: 0; min-width: 0 }
+@media (max-width: 560px) { dl { grid-template-columns: 1fr } dt { padding-top: 0 } }
+ul.plain, ol.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: .95rem }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font: 500 .75rem var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+tr:last-child td { border-bottom: 0 }
+.sent { display: inline-block; min-width: 3.2em; font-family: var(--mono) }
+.pos { color: var(--good) } .neg { color: var(--bad) } .neu { color: var(--muted) }
+.filters { display: flex; flex-wrap: wrap; gap: 8px }
+button { font: 600 .95rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 16px; min-height: 44px; cursor: pointer }
+button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft) }
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px }
+.reactions { display: grid; gap: 10px }
+.r { border-bottom: 1px solid var(--line); padding-bottom: 10px; display: grid; gap: 4px }
+.r .who { font: .85rem var(--mono); color: var(--muted) }
+.r .tags { display: flex; flex-wrap: wrap; gap: 6px }
+details { border: 1px solid var(--line); border-radius: 12px; background: var(--surface) }
+summary { cursor: pointer; padding: 14px 16px; font-weight: 600; min-height: 44px }
+details > div { padding: 0 16px 16px; display: grid; gap: 10px; min-width: 0 }
+pre { margin: 0; max-height: 360px; overflow: auto; font: .8rem/1.45 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; word-break: break-word }
+.export { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.status { color: var(--muted); font-size: .9rem }
+.muted { color: var(--muted) }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .15s, border-color .15s } }
+</style>
+
+<main id="app">
+  <p class="muted">Loading report…</p>
+</main>
+
+<script id="report-data" type="application/json">__REPORT_JSON__</script>
+<script>
+(function () {
+  "use strict";
+  var R = JSON.parse(document.getElementById("report-data").textContent);
+  var M = R.meta || {};
+  var VERDICT = {
+    ship_it: ["Ship it", "v-good"], go: ["Go", "v-good"], fundable: ["Fundable", "v-good"], sharpen_story: ["Sharpen the story", "v-warn"], wrong_stage: ["Wrong stage", "v-bad"], not_fundable: ["Not fundable", "v-bad"],
+    sharpen_positioning: ["Sharpen positioning", "v-warn"], sharpen: ["Sharpen", "v-warn"],
+    wrong_audience: ["Wrong audience", "v-bad"], kill: ["Kill", "v-bad"], hold: ["Hold", "v-bad"]
+  };
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "class") n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function section(title, kids, eyebrow) {
+    return el("section", null, [eyebrow ? el("div", { class: "eyebrow", text: eyebrow }) : null, el("h2", { text: title })].concat(kids));
+  }
+  function list(items, ordered) {
+    return el(ordered ? "ol" : "ul", { class: "plain" }, items.map(function (t) { return el("li", { text: t }); }));
+  }
+  function fmtSent(s) {
+    var v = Number(s || 0);
+    return el("span", { class: "sent " + (v > 0.15 ? "pos" : v < -0.15 ? "neg" : "neu"), text: (v > 0 ? "+" : "") + v.toFixed(1) });
+  }
+  function pct(x) { return Math.round(Number(x || 0)) + "%"; }
+
+  var app = document.getElementById("app");
+  app.textContent = "";
+
+  // Header + disclosure
+  var date = (M.finished_at || "").replace("T", " ").replace("+00:00", " UTC");
+  app.appendChild(el("header", { style: "display:grid;gap:10px" }, [
+    el("div", { class: "eyebrow", text: "Swarmie · " + (M.swarm_label || "") + " simulation · " + date }),
+    el("h1", { text: R.headline || "Simulation report" }),
+    el("p", { class: "muted", text: (R.pitch && R.pitch.one_liner) || "" })
+  ]));
+  app.appendChild(el("div", { class: "disclosure", role: "note" }, [el("strong", { text: "Simulated, not surveyed. " }), M.disclosure || ""]));
+
+  // Decision brief
+  var v = VERDICT[R.verdict] || [String(R.verdict || ""), "v-warn"];
+  app.appendChild(el("div", { class: "brief" }, [
+    el("div", { class: "verdict-row" }, [
+      el("span", { class: "pill " + v[1], text: v[0] }),
+      el("span", { class: "chip", text: "confidence: " + R.confidence }),
+      el("span", { class: "chip", text: "PMF heuristic " + R.pmf_score + "/10" + (R.pmf_index && R.pmf_index.value != null ? " · index " + R.pmf_index.value + " (" + (R.pmf_index.calibration_status || "uncalibrated") + ")" : "") })
+    ]),
+    el("p", { text: R.verdict_reason || "" }),
+    el("div", { class: "next" }, [el("b", { text: "Next action" }), el("span", { text: R.next_action || "" })]),
+    el("p", { class: "muted", text: "Confidence note: " + (R.confidence_reason || "") })
+  ]));
+
+  // Numbers
+  var s = R.sentiment_split || {}, a = R.action_split || {};
+  var bar = el("div", { class: "bar", role: "img", "aria-label": "Sentiment: " + pct(s.positive) + " positive, " + pct(s.neutral) + " neutral, " + pct(s.negative) + " negative" }, [
+    el("span", { style: "width:" + (s.positive || 0) + "%;background:var(--good)" }),
+    el("span", { style: "width:" + (s.neutral || 0) + "%;background:var(--neutral)" }),
+    el("span", { style: "width:" + (s.negative || 0) + "%;background:var(--bad)" })
+  ]);
+  function legend(color, label) { return el("span", null, [el("i", { style: "background:" + color }), label]); }
+  app.appendChild(section("How the swarm reacted", [
+    el("div", { class: "stats" }, [
+      stat(M.n_agents, "simulated personas"), stat(M.speaking_agents, "spoke up"),
+      stat(a.upvote || 0, "upvoted silently"), stat(pct(R.silent_share_pct), "scrolled past")
+    ]),
+    bar,
+    el("div", { class: "legend" }, [legend("var(--good)", "positive " + pct(s.positive)), legend("var(--neutral)", "neutral " + pct(s.neutral)), legend("var(--bad)", "negative " + pct(s.negative))]),
+    el("p", { class: "muted", text: "Actions: " + Object.keys(a).map(function (k) { return k + " " + a[k]; }).join(" · ") + ". Sentiment counts speaking agents and upvotes." })
+  ], "Sentiment distribution"));
+  function stat(n, l) { return el("div", { class: "stat" }, [el("div", { class: "n", text: String(n) }), el("div", { class: "l", text: l })]); }
+
+  app.appendChild(section("Synthesis", (R.narrative || "").split(/\n\s*\n/).map(function (p) { return el("p", { text: p.trim() }); })));
+
+  // Objections
+  var objs = (R.top_objections || []).map(function (o) {
+    return el("article", { class: "objection" }, [
+      el("header", null, [el("h3", { text: o.category }), el("span", { class: "count", text: o.count + (o.count === 1 ? " mention" : " mentions") })]),
+      o.example_quote ? el("blockquote", { text: o.example_quote }) : null,
+      el("dl", null, [
+        el("dt", { text: "Ask 5 real users" }), el("dd", { text: o.real_test || "—" }),
+        el("dt", { text: "Kill criteria" }), el("dd", { text: o.kill_criteria || "—" }),
+        el("dt", { text: "Suggested fix" }), el("dd", { text: o.suggested_fix || "—" })
+      ])
+    ]);
+  });
+  app.appendChild(section("Top objections", objs.length ? objs : [el("p", { class: "muted", text: "No repeated objections were raised." })], "What came up most"));
+
+  if ((R.messaging_gaps || []).length) app.appendChild(section("Weaknesses to fix", [list(R.messaging_gaps)], "Messaging gaps"));
+
+  // Segments
+  var rows = Object.keys(R.icp_fit || {}).map(function (seg) {
+    var f = R.icp_fit[seg];
+    return el("tr", null, [el("td", { text: seg }), el("td", { class: "num", text: String(f.count) }), el("td", { class: "num", text: String(f.speaking_count) }),
+      el("td", { class: "num" }, [fmtSent(f.avg_sentiment)]), el("td", { text: f.dominant_action })]);
+  });
+  app.appendChild(section("Segment differences", [el("div", { class: "table-wrap" }, [el("table", null, [
+    el("thead", null, [el("tr", null, ["Segment", "Agents", "Spoke", "Avg sentiment", "Most common action"].map(function (h) { return el("th", { text: h }); }))]),
+    el("tbody", null, rows)])])], "By audience"));
+
+  // Ignore reasons
+  var ir = R.ignore_reasons || [];
+  app.appendChild(section("Why people scrolled past", ir.length ? ir.map(function (x) {
+    return el("div", { class: "objection" }, [
+      el("header", null, [el("h3", { text: x.label }), el("span", { class: "count", text: pct(x.share_pct) + " of sampled" })]),
+      x.example ? el("blockquote", { text: x.example }) : null,
+      el("p", { text: x.implication || "" })]);
+  }) : [el("p", { class: "muted", text: "Too few silent agents were sampled to explain the silence." })], pct(R.silent_share_pct) + " stayed silent"));
+
+  // Launch brief
+  var lb = R.launch_brief;
+  if (lb) {
+    var kids = [];
+    [["questions", "Questions the thread will ask"], ["confusion", "Likely confusion"], ["risks", "Launch risks"], ["themes", "Themes that will dominate"], ["next_actions", "Before going live"]]
+      .forEach(function (p) { if ((lb[p[0]] || []).length) { kids.push(el("h3", { text: p[1] })); kids.push(list(lb[p[0]])); } });
+    if ((lb.playbook || []).length) {
+      kids.push(el("h3", { text: "Reply playbook" }));
+      kids.push(el("dl", null, lb.playbook.reduce(function (acc, p) { acc.push(el("dt", { text: "If" })); acc.push(el("dd", null, [el("strong", { text: p.trigger }), document.createTextNode(" → " + p.response)])); return acc; }, [])));
+    }
+    app.appendChild(section("Launch brief", kids, "Community stress test"));
+  }
+
+  // Real-world tests
+  var tests = (R.top_objections || []).map(function (o) { return o.real_test; }).filter(Boolean);
+  if (lb && lb.next_actions) tests = tests.concat(lb.next_actions);
+  app.appendChild(section("Recommended real-world tests", [
+    tests.length ? list(tests, true) : el("p", { class: "muted", text: "None produced." }),
+    el("p", { class: "muted", text: "Run these with real people before trusting any number on this page." })
+  ], "Validate with humans"));
+
+  // Reactions
+  var all = R.reactions || [];
+  var spoken = all.filter(function (r) { return r.text; });
+  var silentReasons = all.filter(function (r) { return r.ignore_reason; });
+  var box = el("div", { class: "reactions" });
+  var filters = el("div", { class: "filters", role: "group", "aria-label": "Filter reactions" });
+  var current = "all";
+  [["all", "All (" + spoken.length + ")"], ["pos", "Positive"], ["neg", "Negative"], ["silent", "Scrolled past (" + silentReasons.length + ")"]].forEach(function (f) {
+    var b = el("button", { type: "button", id: "filter-" + f[0], "aria-pressed": f[0] === current ? "true" : "false", text: f[1] });
+    b.addEventListener("click", function () {
+      current = f[0];
+      Array.prototype.forEach.call(filters.children, function (c) { c.setAttribute("aria-pressed", c === b ? "true" : "false"); });
+      draw();
+    });
+    filters.appendChild(b);
+  });
+  function draw() {
+    box.textContent = "";
+    var items = current === "silent" ? silentReasons : spoken.filter(function (r) {
+      return current === "all" || (current === "pos" ? r.sentiment > 0.15 : r.sentiment < -0.15);
+    });
+    if (!items.length) { box.appendChild(el("p", { class: "muted", text: "No reactions in this group." })); return; }
+    items.forEach(function (r) {
+      box.appendChild(el("div", { class: "r" }, [
+        el("div", { class: "who" }, [r.name + " · " + r.segment + " · " + r.tone + " · " + r.action + " ", r.text ? fmtSent(r.sentiment) : null]),
+        el("p", { text: r.text || r.ignore_reason }),
+        (r.objections || []).length ? el("div", { class: "tags" }, r.objections.map(function (t) { return el("span", { class: "chip", text: t }); })) : null
+      ]));
+    });
+  }
+  draw();
+  app.appendChild(section("Individual persona reactions", [filters, box], "Every voice"));
+
+  // Pitch + export
+  function copyBtn(id, label, getText, status) {
+    var b = el("button", { type: "button", id: id, text: label });
+    b.addEventListener("click", function () {
+      var t = getText();
+      var done = function () { status.textContent = label.replace("Copy ", "") + " copied to clipboard."; };
+      try {
+        navigator.clipboard.writeText(t).then(done, function () { fallback(t); });
+      } catch (e) { fallback(t); }
+      function fallback(text) { rawPre.textContent = text; rawDetails.open = true; selectAll(rawPre); status.textContent = "Clipboard blocked here. The text is selected below; copy it manually."; }
+    });
+    return b;
+  }
+  function selectAll(node) { try { var r = document.createRange(); r.selectNodeContents(node); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+  var status = el("span", { class: "status", role: "status" });
+  var rawPre = el("pre", { text: R._markdown || "" });
+  var rawDetails = el("details", null, [el("summary", { text: "Show report as text" }), el("div", null, [rawPre])]);
+  var exportReport = JSON.parse(JSON.stringify(R)); delete exportReport._markdown;
+  app.appendChild(section("Export", [
+    el("div", { class: "export" }, [
+      copyBtn("copy-md", "Copy Markdown", function () { return R._markdown || ""; }, status),
+      copyBtn("copy-json", "Copy JSON", function () { return JSON.stringify(exportReport, null, 2); }, status),
+      status
+    ]),
+    rawDetails,
+    el("details", null, [el("summary", { text: "Pitch as submitted" }), el("div", null, [el("pre", { text: R.pitch_text || "" })])])
+  ], "Keep a copy"));
+
+  app.appendChild(el("footer", null, [
+    "Generated by the Swarmie pipeline (hp-8/swarmie, AGPL-3.0) with Claude Code subagents as the language model. ",
+    M.n_agents + " personas from " + M.n_archetypes + " archetypes, seed " + M.seed + ", " + (M.failed_agent_calls || 0) + " failed persona calls" +
+    (M.synthesis_fallback_used ? ", synthesis used Swarmie's deterministic fallback" : "") + "."
+  ]));
+})();
+</script>
